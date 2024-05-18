@@ -6,12 +6,93 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Runtime.InteropServices;
 
-namespace Socket2
+namespace WinformThreadingFix
 {
+    class Listener
+    {
+        Socket socket;
+        Thread thread;
+        string name = "";
+        int id;
+        public delegate void MessageFromClient(string ClientName, string message, int id);
+        public event MessageFromClient Notify;
+        public Listener(Socket handler, int id)
+        {
+            this.id = id;
+            socket = handler;
+            thread = new Thread(Listen);
+            thread.IsBackground = true;
+        }
+        public void Start() 
+        { 
+            thread.Start();
+        }
+        void Listen()
+        {
+            try
+            {
+                while (true)
+                {
+                    Thread.Sleep(2000);
+
+                    StringBuilder builder = new StringBuilder();
+                    int bytes = 0; // количество полученных байтов за 1 раз
+                    int kol_bytes = 0;//количество полученных байтов
+                    byte[] data = new byte[255]; // буфер для получаемых данных
+                    do
+                    {
+                        bytes = socket.Receive(data);  // получаем сообщение
+                        builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
+                        kol_bytes += bytes;
+                    }
+                    while (socket.Available > 0);
+
+                    string input = builder.ToString();
+                    if (input.StartsWith("/name"))
+                    {
+                        name = input.Substring("/name ".Length);
+                    }
+                    Notify.Invoke(name, input, id);
+                    string response = input;
+
+                    Console.WriteLine(DateTime.Now.ToShortTimeString() + ": " + response);
+                    Console.WriteLine(kol_bytes + "bytes\n");
+                    // отправляем ответ клиенту, то, что получили от него
+                    
+
+                    // закрываем сокет
+                    if (response == "/exit")
+                    {
+                        socket.Shutdown(SocketShutdown.Both);
+                        socket.Close();
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+        public bool Send(string Message)
+        {
+            try
+            {
+                socket.Send(Encoding.Unicode.GetBytes(Message));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+        }
+    }
     internal class Server
     {
         const int port = 8005; // порт для приема входящих запросов
+        List<Listener> listeners = new List<Listener>();
         public Server()
         {
             String Host = Dns.GetHostName();
@@ -37,55 +118,21 @@ namespace Socket2
             Console.WriteLine("Сервер запущен. Ожидание подключений...");
             // сокет для связи с клиентом
 
-            
-
             while (true)
             {
-                
                 Socket handler = listenSocket.Accept();
-                Thread thread = new Thread(() => Process(handler));
-                thread.Start();
-                //Process(handler);
+                Listener listener = new Listener(handler, listeners.Count);
+                listeners.Add(listener);
+                listeners[listeners.Count - 1].Notify += Resend;
+                listeners[listeners.Count - 1].Start();
             }
         }
-        void Process(Socket handler)
+        void Resend(string ClientName, string Message, int id)
         {
-            try
+            for (int i = 0; i < listeners.Count; i++) 
             {
-                while (true)
-                {
-                    StringBuilder builder = new StringBuilder();
-                    int bytes = 0; // количество полученных байтов за 1 раз
-                    int kol_bytes = 0;//количество полученных байтов
-                    byte[] data = new byte[255]; // буфер для получаемых данных
-                    do
-                    {
-                        bytes = handler.Receive(data);  // получаем сообщение
-                        builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
-                        kol_bytes += bytes;
-                    }
-                    while (handler.Available > 0);
-            
-                    string input = builder.ToString();
-                    string response = input;
-            
-                    Console.WriteLine(DateTime.Now.ToShortTimeString() + ": " + response);
-                    Console.WriteLine(kol_bytes + "bytes\n");
-                    // отправляем ответ клиенту, то, что получили от него
-                    handler.Send(Encoding.Unicode.GetBytes(response));
-            
-                    // закрываем сокет
-                    if (response == "exit")
-                    {
-                        handler.Shutdown(SocketShutdown.Both);
-                        handler.Close();
-                        return;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
+                if (id == i) continue;
+                listeners[i].Send(ClientName + ": " + Message);
             }
         }
     }

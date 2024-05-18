@@ -1,26 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Net;
-using System.Net.Sockets;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 
-namespace Socket2
+namespace WinformThreadingFix
 {
-    class Program
+    internal static class Program
     {
-        static void Main(string[] args)
+        /// <summary>
+        /// Главная точка входа для приложения.
+        /// </summary>
+        [STAThread]
+        static void Main()
         {
-            Console.Write("Server or client? (S or C): ");
-            string input = Console.ReadLine();
-            if (input == "S")
-            {
-                Server server = new Server();
-            }
-            else if (input == "C")
-            {
-                Client client = new Client();
-            }
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new Form1());
         }
     }
 }
