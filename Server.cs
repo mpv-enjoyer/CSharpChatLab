@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace Socket2
 {
@@ -26,20 +27,33 @@ namespace Socket2
 
             // создаем сокет сервера
             Socket listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
+            // связываем сокет с локальной точкой, по которой будем принимать данные
+            listenSocket.Bind(ipPoint);
+            
+            // начинаем прослушивание
+            listenSocket.Listen(10);
+            
+            Console.WriteLine("Сервер запущен. Ожидание подключений...");
+            // сокет для связи с клиентом
+
+            
+
+            while (true)
+            {
+                
+                Socket handler = listenSocket.Accept();
+                Thread thread = new Thread(() => Process(handler));
+                thread.Start();
+                //Process(handler);
+            }
+        }
+        void Process(Socket handler)
+        {
             try
             {
-                // связываем сокет с локальной точкой, по которой будем принимать данные
-                listenSocket.Bind(ipPoint);
-
-                // начинаем прослушивание
-                listenSocket.Listen(10);
-
-                Console.WriteLine("Сервер запущен. Ожидание подключений...");
-                // сокет для связи с     клиентом
-                Socket handler = listenSocket.Accept();
                 while (true)
                 {
-                    // готовимся  получать  сообщение
                     StringBuilder builder = new StringBuilder();
                     int bytes = 0; // количество полученных байтов за 1 раз
                     int kol_bytes = 0;//количество полученных байтов
@@ -51,21 +65,21 @@ namespace Socket2
                         kol_bytes += bytes;
                     }
                     while (handler.Available > 0);
-
+            
                     string input = builder.ToString();
                     string response = input;
-
+            
                     Console.WriteLine(DateTime.Now.ToShortTimeString() + ": " + response);
                     Console.WriteLine(kol_bytes + "bytes\n");
                     // отправляем ответ клиенту, то, что получили от него
                     handler.Send(Encoding.Unicode.GetBytes(response));
-
+            
                     // закрываем сокет
                     if (response == "exit")
                     {
                         handler.Shutdown(SocketShutdown.Both);
                         handler.Close();
-                        handler = listenSocket.Accept();
+                        return;
                     }
                 }
             }
