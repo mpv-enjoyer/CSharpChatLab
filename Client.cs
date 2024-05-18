@@ -15,16 +15,17 @@ namespace Socket2
         int? code;
         public Client()
         {
-            while (true)
-            {
-                try
-                {    //создаем конечную точку
-                    IPEndPoint ipPoint = new IPEndPoint(IPAddress.Parse(address), port);
-                    //создаем сокет
-                    Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            try
+            {   
+                //создаем конечную точку
+                IPEndPoint ipPoint = new IPEndPoint(IPAddress.Parse(address), port);
+                //создаем сокет
+                Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
-                    // подключаемся к удаленному хосту
-                    
+                // подключаемся к удаленному хосту
+                socket.Connect(ipPoint);
+                while (true)
+                {
                     StringBuilder builder = new StringBuilder();
                     Console.Write("Введите сообщение:");
                     string message = Console.ReadLine();
@@ -36,7 +37,6 @@ namespace Socket2
                     byte[] data = Encoding.Unicode.GetBytes(message);
 
                     //посылаем сообщение
-                    socket.Connect(ipPoint);
                     socket.Send(data);
                     // готовимся получить ответ
                     data = new byte[256]; // буфер для ответа
@@ -49,34 +49,16 @@ namespace Socket2
                     }
                     while (socket.Available > 0);
                     string response = builder.ToString();
-                    string[] splitted = response.Split('|');
-                    if (code == null)
-                    {
-                        if (splitted.Length > 0 && int.TryParse(splitted[0], out int c)) 
-                        {
-                            code = int.Parse(splitted[0]);
-                            splitted[0] = "CODE RECEIVED";
-                            response = String.Join("|", splitted);
-                        }
-                    }
-                    else
-                    {
-                        if (splitted.Length > 0 && splitted[0] == "(exit)")
-                        {
-                            code = null;
-                        }
-                    }
-
                     Console.WriteLine("ответ сервера: " + response);
 
                     // закрываем сокет
-                    socket.Shutdown(SocketShutdown.Both);
-                    socket.Close();
+                    //socket.Shutdown(SocketShutdown.Both);
+                    //socket.Close();
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
             }
         }
     }
